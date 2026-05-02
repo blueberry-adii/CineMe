@@ -16,7 +16,7 @@ func main() {
 	mux.HandleFunc("GET /api/movies", listMovies)
 
 	// redisClient := redis.NewRedisClient("localhost:6379")
-	var handler booking.IHandler = booking.NewHandler()
+	handler := booking.NewHandler()
 
 	mux.HandleFunc("GET /api/health", getHealth)
 
