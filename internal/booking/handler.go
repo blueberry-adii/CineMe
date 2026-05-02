@@ -11,7 +11,10 @@ type Handler struct {
 
 type IHandler interface {
 	GetMovies(w http.ResponseWriter, r *http.Request)
-	GetMovieById(w http.ResponseWriter, r *http.Request)
+	ListSeats(w http.ResponseWriter, r *http.Request)
+	HoldSeat(w http.ResponseWriter, r *http.Request)
+	ConfirmSession(w http.ResponseWriter, r *http.Request)
+	ReleaseSession(w http.ResponseWriter, r *http.Request)
 }
 
 func NewHandler() *Handler {
@@ -22,6 +25,18 @@ func (h *Handler) GetMovies(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, 200, "Ok")
 }
 
-func (h *Handler) GetMovieById(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListSeats(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJSON(w, 200, "Ok")
+}
+
+func (h *Handler) HoldSeat(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJSON(w, 200, "Ok")
+}
+
+func (h *Handler) ConfirmSession(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJSON(w, 200, "Ok")
+}
+
+func (h *Handler) ReleaseSession(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, 200, "Ok")
 }
