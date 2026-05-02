@@ -7,7 +7,60 @@
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
-<body>
-    <h1></h1>
+<body> 
+    <div class="container">
+        <header class="movie-header">
+            <div class="movie-info">
+                <h1>Interstellar</h1>
+                <p class="genre">Sci-Fi • Adventure • Drama</p>
+                <div class="meta">
+                    <span>169 min</span>
+                    <span>IMDb 8.7</span>
+                </div>
+            </div>
+            <div class="timer-container" id="timer-container" style="display: none;">
+                <span class="timer-label">Seats held for:</span>
+                <span id="timer">05:00</span>
+            </div>
+        </header>
+
+        <main class="booking-area">
+            <div class="screen-container">
+                <div class="screen"></div>
+                <p class="screen-label">SCREEN</p>
+            </div>
+
+            <div class="seating-chart">
+                <div class="columns" id="seat-grid">
+                    <!-- Seats will be generated here -->
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="item"><div class="seat-sample normal"></div> <span>Available</span></div>
+                <div class="item"><div class="seat-sample selected"></div> <span>Selected</span></div>
+                <div class="item"><div class="seat-sample reserved"></div> <span>Reserved</span></div>
+                <div class="item"><div class="seat-sample confirmed"></div> <span>Confirmed</span></div>
+                <div class="item"><div class="seat-sample sold"></div> <span>Sold</span></div>
+            </div>
+        </main>
+
+        <footer class="booking-summary" id="booking-summary">
+            <div class="summary-details">
+                <p><span id="count">0</span> Seats selected</p>
+                <p class="total">Total: <span id="total">$0</span></p>
+            </div>
+            <button class="book-btn" id="book-btn" disabled>Book Now</button>
+        </footer>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">✓</div>
+            <h2 id="modal-title">Booking Confirmed!</h2>
+            <p id="modal-message">Your seats have been successfully reserved.</p>
+            <button id="modal-close" class="modal-btn">Great!</button>
+        </div>
+    </div>
 </body>
 </html>
