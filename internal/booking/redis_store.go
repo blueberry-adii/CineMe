@@ -11,22 +11,44 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+/*
+* TTL time for seat holding for a user
+* Seat Released if not booked within that time
+ */
 const defaultHoldTTL = time.Second * 10
 
+/*
+* Store 3 (Final):
+* Redis store was created to implement multiple user bookings concurrently
+* Result:
+* Success, as Redis is single threaded, no overrides and race conditions
+ */
+/*
+* Depends on Redis Client
+ */
 type RedisStore struct {
 	rdb *redis.Client
 }
 
+/*
+* Redis Store Constructor
+ */
 func NewRedisStore(rdb *redis.Client) *RedisStore {
 	return &RedisStore{
 		rdb,
 	}
 }
 
+/*
+* Returns redis key for a given session Id
+ */
 func sessionKey(id string) string {
 	return fmt.Sprintf("session:%s", id)
 }
 
+/*
+* Holds the seat for a given seat in a booking
+ */
 func (s *RedisStore) Book(b Booking) (Booking, error) {
 	b, err := s.hold(b)
 
@@ -39,6 +61,9 @@ func (s *RedisStore) Book(b Booking) (Booking, error) {
 	return b, nil
 }
 
+/*
+* Lists all the bookings from Redis for a given movieId
+ */
 func (s *RedisStore) ListBookings(movieID string) []Booking {
 	ctx := context.Background()
 	pattern := fmt.Sprintf("seat:%s:*", movieID)
@@ -61,6 +86,11 @@ func (s *RedisStore) ListBookings(movieID string) []Booking {
 	return bookings
 }
 
+/*
+* Creates Session/Booking ID, adds expiry and sets status "held"
+* saves key value pair into redis with expiry only if the pair doesnt
+* already exist inside Redis.
+ */
 func (s *RedisStore) hold(b Booking) (Booking, error) {
 	b.ID = uuid.New().String()
 	b.ExpiresAt = time.Now().Add(defaultHoldTTL)
@@ -82,6 +112,10 @@ func (s *RedisStore) hold(b Booking) (Booking, error) {
 	return b, nil
 }
 
+/*
+* Confirms a booking by getting the session from session ID and user ID
+* removes expiry time and persists the key value pair
+ */
 func (s *RedisStore) Confirm(ctx context.Context, sessionID string, userID string) (Booking, error) {
 	session, sk, err := s.getSession(ctx, sessionID, userID)
 
@@ -107,6 +141,9 @@ func (s *RedisStore) Confirm(ctx context.Context, sessionID string, userID strin
 	return session, nil
 }
 
+/*
+* Parses Session from String JSON to Go Struct
+ */
 func parseSession(val string) (Booking, error) {
 	var data Booking
 	if err := json.Unmarshal([]byte(val), &data); err != nil {
@@ -121,6 +158,9 @@ func parseSession(val string) (Booking, error) {
 	}, nil
 }
 
+/*
+* Gets session from session ID and user ID
+ */
 func (s *RedisStore) getSession(ctx context.Context, sessionID string, userID string) (Booking, string, error) {
 	sk, err := s.rdb.Get(ctx, sessionKey(sessionID)).Result()
 
@@ -141,6 +181,10 @@ func (s *RedisStore) getSession(ctx context.Context, sessionID string, userID st
 	return session, sk, nil
 }
 
+/*
+* Deletes seat:session key value pair and sessionId:seat key value pair from Redis
+* and frees up the seat for others
+ */
 func (s *RedisStore) Release(ctx context.Context, sessionID string, userID string) error {
 	_, sk, err := s.getSession(ctx, sessionID, userID)
 

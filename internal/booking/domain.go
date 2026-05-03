@@ -6,10 +6,17 @@ import (
 	"time"
 )
 
+/*
+* Global Error Definitions
+ */
 var (
 	ErrSeatAlreadyBooked = errors.New("seat is already taken")
 )
 
+/*
+* A Booking contains Movie, Seat and the User, with a status
+* and ExpiryDateAndTime if status is hold
+ */
 type Booking struct {
 	ID        string
 	MovieID   string
@@ -19,6 +26,9 @@ type Booking struct {
 	ExpiresAt time.Time
 }
 
+/*
+* Interface for all Store structs
+ */
 type BookingStore interface {
 	Book(b Booking) (Booking, error)
 	ListBookings(movieID string) []Booking

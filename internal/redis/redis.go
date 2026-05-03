@@ -7,6 +7,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+/*
+* Constructor which returns a new Redis Client
+* required by Redis Store
+ */
 func NewRedisClient(addr string) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
 		Addr: addr,

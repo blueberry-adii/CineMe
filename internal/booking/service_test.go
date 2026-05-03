@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+/*
+* Test to check for race conditions and atomicity
+* memory_store failed - due to lack of atomicity in concurrent operations
+* concurrent_store passed - due to use of mutex locks on read and write operations
+* redis_store passed - due to redis being single threaded, writes are made only if session for
+* given seat doesnt exist in redis.
+ */
 func TestConcurrentBooking(t *testing.T) {
 	store := NewRedisStore(redis.NewRedisClient("localhost:6379"))
 	svc := NewService(store)
@@ -41,6 +48,10 @@ func TestConcurrentBooking(t *testing.T) {
 
 	wg.Wait()
 
+	/*
+	* Only One User can succeed in booking 1 seat, all others fail - Test Pass
+	* Otherwise - Test Fail
+	 */
 	if got := successes.Load(); got != 1 {
 		t.Errorf("expected exactly 1 success, got %d", got)
 	}

@@ -15,6 +15,17 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc}
 }
 
+func (h *Handler) ListMovies(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJSON(w, http.StatusOK, Movies)
+}
+
+func (h *Handler) GetHealth(w http.ResponseWriter, r *http.Request) {
+	response := map[string]string{
+		"status": "ok",
+	}
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
 func (h *Handler) ListBookings(w http.ResponseWriter, r *http.Request) {
 	movieId := r.PathValue("movieId")
 	bookings := h.svc.ListBookings(movieId)

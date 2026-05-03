@@ -2,17 +2,30 @@ package booking
 
 import "sync"
 
+/*
+* Store 2:
+* Concurrent store was created to fix memory store's race conditions
+* Implements Mutex Locks on Reads and Writes to prevent overriding
+* Result:
+* Success, no 2 users can write at the same time
+ */
 type ConcurrentStore struct {
 	bookings map[string]Booking
 	sync.RWMutex
 }
 
+/*
+* Constructor
+ */
 func NewConcurrentStore() *ConcurrentStore {
 	return &ConcurrentStore{
 		bookings: map[string]Booking{},
 	}
 }
 
+/*
+* Adds a booking to the map if booking doesnt already exist
+ */
 func (s *ConcurrentStore) Book(b Booking) error {
 	s.Lock()
 	defer s.Unlock()
@@ -25,6 +38,9 @@ func (s *ConcurrentStore) Book(b Booking) error {
 	return nil
 }
 
+/*
+* Lists all the bookings in the bookings map
+ */
 func (s *ConcurrentStore) ListBookings(movieID string) []Booking {
 	s.RLock()
 	defer s.RUnlock()
@@ -38,10 +54,3 @@ func (s *ConcurrentStore) ListBookings(movieID string) []Booking {
 
 	return result
 }
-
-// func (s *ConcurrentStore) Confirm(ctx context.Context, sessionID string, userID string) (Booking, error) {
-
-// }
-// func (s *ConcurrentStore) Release(ctx context.Context, sessionID string, userID string) error {
-
-// }

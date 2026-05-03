@@ -1,15 +1,29 @@
 package booking
 
+/*
+* Store 1:
+* Memory store was created to test multiple user bookings, while using
+* in memory bookings map
+* Result:
+* Failure, Race Conditions as multiple user overrid the bookings as the operations
+* were not Atomic
+ */
 type MemoryStore struct {
 	bookings map[string]Booking
 }
 
+/*
+* Constructor
+ */
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
 		map[string]Booking{},
 	}
 }
 
+/*
+* Adds a booking to the map if booking doesnt already exist
+ */
 func (s *MemoryStore) Book(b Booking) error {
 	if _, exists := s.bookings[b.SeatID]; exists {
 		return ErrSeatAlreadyBooked
@@ -19,6 +33,9 @@ func (s *MemoryStore) Book(b Booking) error {
 	return nil
 }
 
+/*
+* Lists all the bookings in the bookings map
+ */
 func (s *MemoryStore) ListBookings(movieID string) []Booking {
 	var result []Booking
 
@@ -30,10 +47,3 @@ func (s *MemoryStore) ListBookings(movieID string) []Booking {
 
 	return result
 }
-
-// func (s *MemoryStore) Confirm(ctx context.Context, sessionID string, userID string) (Booking, error) {
-
-// }
-// func (s *MemoryStore) Release(ctx context.Context, sessionID string, userID string) error {
-
-// }
