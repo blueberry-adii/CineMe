@@ -2,6 +2,7 @@ package booking
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/blueberry-adii/CineMe/internal/utils"
 )
@@ -46,12 +47,26 @@ func (h *Handler) HoldSeat(w http.ResponseWriter, r *http.Request) {
 		UserID:  payload.UserID,
 	}
 
-	if err := h.svc.Book(booking); err != nil {
+	session, err := h.svc.Book(booking)
+
+	if err != nil {
 		utils.WriteJSON(w, 400, err.Error())
 		return
 	}
 
-	utils.WriteJSON(w, 200, booking)
+	type holdResponse struct {
+		SessionId string `json:"session_id"`
+		MovieID   string `json:"movie_id"`
+		SeatId    string `json:"seat_id"`
+		ExpiresAt string `json:"expires_at"`
+	}
+
+	utils.WriteJSON(w, 200, holdResponse{
+		SessionId: session.ID,
+		MovieID:   session.MovieID,
+		SeatId:    session.SeatID,
+		ExpiresAt: session.ExpiresAt.Format(time.RFC3339),
+	})
 }
 
 func (h *Handler) ConfirmSession(w http.ResponseWriter, r *http.Request) {

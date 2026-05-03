@@ -10,7 +10,7 @@ func NewService(store BookingStore) *Service {
 	}
 }
 
-func (s *Service) Book(b Booking) error {
+func (s *Service) Book(b Booking) (Booking, error) {
 	return s.store.Book(b)
 }
 
