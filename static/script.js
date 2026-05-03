@@ -18,6 +18,7 @@ const bookBtn = document.getElementById("book-btn");
 
 let selectedMovieId = null;
 let currentSeatsData = [];
+const USER_ID = Math.random().toString(36).substring(2, 15);
 
 async function fetchSeats(movieId) {
     if (!movieId) return;
@@ -149,7 +150,13 @@ async function toggleSeat(seatNum) {
         
         if (selectedMovieId) {
             try {
-                const res = await fetch(`/api/movies/${selectedMovieId}/seats/${seatNum}/hold`);
+                const res = await fetch(`/api/movies/${selectedMovieId}/seats/${seatNum}/hold`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_id: USER_ID })
+                });
                 if (!res.ok) return;
             } catch (err) {
                 return;

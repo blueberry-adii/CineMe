@@ -10,3 +10,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
 }
+
+func ParseJSON(r *http.Request, v any) error {
+	return json.NewDecoder(r.Body).Decode(v)
+}
