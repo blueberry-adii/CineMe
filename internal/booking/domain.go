@@ -1,7 +1,6 @@
 package booking
 
 import (
-	"context"
 	"errors"
 	"time"
 )
@@ -23,6 +22,6 @@ type BookingStore interface {
 	Book(b Booking) (Booking, error)
 	ListBookings(movieID string) []Booking
 
-	Confirm(ctx context.Context, sessionID string, userID string) (Booking, error)
-	Release(ctx context.Context, sessionID string, userID string) error
+	// Confirm(ctx context.Context, sessionID string, userID string) (Booking, error)
+	// Release(ctx context.Context, sessionID string, userID string) error
 }

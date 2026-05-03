@@ -7,10 +7,11 @@ import (
 )
 
 type Handler struct {
+	svc *Service
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(svc *Service) *Handler {
+	return &Handler{svc}
 }
 
 func (h *Handler) ListSeats(w http.ResponseWriter, r *http.Request) {
