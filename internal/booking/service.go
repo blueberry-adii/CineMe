@@ -1,12 +1,15 @@
 package booking
 
 type Service struct {
+	store BookingStore
 }
 
-func NewService() *Service {
-	return &Service{}
+func NewService(store BookingStore) *Service {
+	return &Service{
+		store,
+	}
 }
 
-func (s *Service) Book() (Booking, error) {
-	return Booking{}, nil
+func (s *Service) Book(b Booking) error {
+	return s.store.Book(b)
 }

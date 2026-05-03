@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/blueberry-adii/CineMe/internal/booking"
+	"github.com/blueberry-adii/CineMe/internal/redis"
 	"github.com/blueberry-adii/CineMe/internal/utils"
 )
 
@@ -15,9 +16,8 @@ func main() {
 	mux.Handle("/", http.FileServer(http.Dir("./static")))
 	mux.HandleFunc("GET /api/movies", listMovies)
 
-	// redisClient := redis.NewRedisClient("localhost:6379")
-
-	service := booking.NewService()
+	redisStore := booking.NewRedisStore(redis.NewRedisClient("localhost:6379"))
+	service := booking.NewService(redisStore)
 	handler := booking.NewHandler(service)
 
 	mux.HandleFunc("GET /api/health", getHealth)
