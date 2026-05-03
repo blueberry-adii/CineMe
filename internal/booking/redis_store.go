@@ -82,9 +82,72 @@ func (s *RedisStore) hold(b Booking) (Booking, error) {
 	return b, nil
 }
 
-// func (s *RedisStore) Confirm(ctx context.Context, sessionID string, userID string) (Booking, error) {
+func (s *RedisStore) Confirm(ctx context.Context, sessionID string, userID string) (Booking, error) {
+	session, sk, err := s.getSession(ctx, sessionID, userID)
 
-// }
-// func (s *RedisStore) Release(ctx context.Context, sessionID string, userID string) error {
+	if err != nil {
+		return Booking{}, err
+	}
 
-// }
+	s.rdb.Persist(ctx, sk)
+	s.rdb.Persist(ctx, sessionKey(sessionID))
+
+	session.Status = "confirmed"
+	data := Booking{
+		ID:      session.ID,
+		MovieID: session.MovieID,
+		UserID:  session.UserID,
+		SeatID:  session.SeatID,
+		Status:  session.Status,
+	}
+
+	val, _ := json.Marshal(data)
+	s.rdb.Set(ctx, sk, val, 0)
+
+	return session, nil
+}
+
+func parseSession(val string) (Booking, error) {
+	var data Booking
+	if err := json.Unmarshal([]byte(val), &data); err != nil {
+		return Booking{}, err
+	}
+	return Booking{
+		ID:      data.ID,
+		MovieID: data.MovieID,
+		SeatID:  data.SeatID,
+		UserID:  data.UserID,
+		Status:  data.Status,
+	}, nil
+}
+
+func (s *RedisStore) getSession(ctx context.Context, sessionID string, userID string) (Booking, string, error) {
+	sk, err := s.rdb.Get(ctx, sessionKey(sessionID)).Result()
+
+	if err != nil {
+		return Booking{}, "", err
+	}
+
+	val, err := s.rdb.Get(ctx, sk).Result()
+	if err != nil {
+		return Booking{}, "", err
+	}
+
+	session, err := parseSession(val)
+	if err != nil {
+		return Booking{}, "", err
+	}
+
+	return session, sk, nil
+}
+
+func (s *RedisStore) Release(ctx context.Context, sessionID string, userID string) error {
+	_, sk, err := s.getSession(ctx, sessionID, userID)
+
+	if err != nil {
+		return err
+	}
+
+	s.rdb.Del(ctx, sk, sessionKey(sessionID))
+	return nil
+}
