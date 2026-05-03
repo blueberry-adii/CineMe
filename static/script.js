@@ -8,14 +8,13 @@ let reservedByOther = [];
 let timerInterval = null;
 let pollingInterval = null;
 let sessionExpiries = {}; 
+let sessionIds = {}; // Map seatId to sessionId
 let lastActionTime = 0;
-let pendingSeats = new Set(); // Seats currently being held via API
+let pendingSeats = new Set(); 
 
 const seatGrid = document.getElementById("seat-grid");
 const countEl = document.getElementById("count");
 const totalEl = document.getElementById("total");
-const timerContainer = document.getElementById("timer-container");
-const timerEl = document.getElementById("timer");
 const bookBtn = document.getElementById("book-btn");
 
 let selectedMovieId = null;
@@ -30,8 +29,10 @@ async function fetchBookings(movieId, isInitial = false) {
         const bookings = await res.json();
         
         const newReserved = [];
+        const newSold = [];
         const newSelected = [];
         const newExpiries = { ...sessionExpiries };
+        const newSessionIds = { ...sessionIds };
         
         if (Array.isArray(bookings)) {
             bookings.forEach(booking => {
@@ -40,21 +41,28 @@ async function fetchBookings(movieId, isInitial = false) {
                     if (booking.expires_at) {
                         newExpiries[booking.seat_id] = new Date(booking.expires_at).getTime();
                     }
+                    if (booking.session_id) {
+                        newSessionIds[booking.seat_id] = booking.session_id;
+                    }
                 } else {
-                    newReserved.push(booking.seat_id);
+                    if (booking.status === "confirmed") {
+                        newSold.push(booking.seat_id);
+                    } else {
+                        newReserved.push(booking.seat_id);
+                    }
                 }
             });
         }
 
         reservedByOther = newReserved;
+        soldByOther = newSold;
         
-        // Only sync selected seats if it's the first load OR if the user hasn't interacted recently
         const timeSinceAction = Date.now() - lastActionTime;
         if (isInitial || timeSinceAction > 5000) {
-            // Keep seats that are "pending" or recently clicked
             const mergedSelected = [...new Set([...newSelected, ...Array.from(pendingSeats)])];
             selectedByYou = mergedSelected;
-            sessionExpiries = { ...newExpiries };
+            sessionExpiries = newExpiries;
+            sessionIds = newSessionIds;
         }
 
         renderSeats();
@@ -124,9 +132,12 @@ async function renderMovies() {
             `;
 
             selectedByYou = [];
+            confirmedByYou = []; // Reset confirmed seats when switching movies
             reservedByOther = [];
+            soldByOther = []; // Also reset sold seats
             sessionExpiries = {};
-            lastActionTime = 0; // Reset for new movie
+            sessionIds = {};
+            lastActionTime = 0; 
             await fetchBookings(selectedMovieId, true);
             updateSummary();
         };
@@ -196,7 +207,6 @@ function renderSeats() {
     });
 }
 
-// Event Delegation
 seatGrid.addEventListener("click", (e) => {
     const seat = e.target.closest(".seat");
     if (!seat || !seat.dataset.num) return;
@@ -209,18 +219,26 @@ async function toggleSeat(seatNum) {
     lastActionTime = Date.now(); 
 
     if (selectedByYou.includes(seatNum)) {
+        const sid = sessionIds[seatNum];
         selectedByYou = selectedByYou.filter(s => s !== seatNum);
         delete sessionExpiries[seatNum];
+        delete sessionIds[seatNum];
         pendingSeats.delete(seatNum);
+
+        if (sid) {
+            fetch(`/api/sessions/${sid}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: USER_ID })
+            });
+        }
     } else {
-        // Prevent double-adding if clicked rapidly
         if (selectedByYou.includes(seatNum)) return;
         
         selectedByYou.push(seatNum);
         pendingSeats.add(seatNum);
         sessionExpiries[seatNum] = Date.now() + 10000;
         
-        // Immediate synchronous update
         renderSeats();
         updateSummary();
         startTimer();
@@ -241,6 +259,9 @@ async function toggleSeat(seatNum) {
                     const booking = await res.json();
                     if (booking && booking.expires_at) {
                         sessionExpiries[seatNum] = new Date(booking.expires_at).getTime();
+                    }
+                    if (booking && booking.session_id) {
+                        sessionIds[seatNum] = booking.session_id;
                     }
                     pendingSeats.delete(seatNum);
                 }
@@ -303,6 +324,7 @@ function startTimer() {
 function expireSeat(seatId) {
     selectedByYou = selectedByYou.filter(s => s !== seatId);
     delete sessionExpiries[seatId];
+    delete sessionIds[seatId];
 }
 
 function stopTimer() {
@@ -327,20 +349,29 @@ function hideModal() {
 
 modalClose.addEventListener("click", hideModal);
 
-function expireSelection() {
-    stopTimer();
+bookBtn.addEventListener("click", async () => {
+    const seatsToBook = [...selectedByYou];
+    
+    for (const seatId of seatsToBook) {
+        const sid = sessionIds[seatId];
+        if (sid) {
+            try {
+                await fetch(`/api/sessions/${sid}/confirm`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: USER_ID })
+                });
+                confirmedByYou.push(seatId);
+            } catch (err) {
+                console.error("Failed to confirm seat", seatId, err);
+            }
+        }
+    }
+    
+    showModal("Booking Confirmed!", `Successfully booked: ${seatsToBook.join(", ")}. Enjoy your movie!`);
     selectedByYou = [];
     sessionExpiries = {};
-    renderSeats();
-    updateSummary();
-    showModal("Session Expired", "Your seat hold has expired. Please select seats again.");
-}
-
-bookBtn.addEventListener("click", () => {
-    showModal("Booking Confirmed!", `Successfully booked: ${selectedByYou.join(", ")}. Enjoy your movie!`);
-    selectedByYou.forEach(s => confirmedByYou.push(s));
-    selectedByYou = [];
-    sessionExpiries = {};
+    sessionIds = {};
     stopTimer();
     renderSeats();
     updateSummary();

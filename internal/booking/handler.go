@@ -27,6 +27,8 @@ func (h *Handler) ListBookings(w http.ResponseWriter, r *http.Request) {
 				UserId:    b.UserID,
 				Booked:    true,
 				ExpiresAt: b.ExpiresAt,
+				SessionId: b.ID,
+				Status:    b.Status,
 			})
 		}
 	}
@@ -55,27 +57,51 @@ func (h *Handler) HoldSeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type holdResponse struct {
-		SessionId string `json:"session_id"`
-		MovieID   string `json:"movie_id"`
-		SeatId    string `json:"seat_id"`
-		ExpiresAt string `json:"expires_at"`
-	}
-
-	utils.WriteJSON(w, 200, holdResponse{
+	utils.WriteJSON(w, 200, seatInfo{
 		SessionId: session.ID,
-		MovieID:   session.MovieID,
 		SeatId:    session.SeatID,
-		ExpiresAt: session.ExpiresAt.Format(time.RFC3339),
+		ExpiresAt: session.ExpiresAt,
+		UserId:    session.UserID,
+		Booked:    true,
+		Status:    session.Status,
 	})
 }
 
 func (h *Handler) ConfirmSession(w http.ResponseWriter, r *http.Request) {
-	utils.WriteJSON(w, 200, "Ok")
+	sessionID := r.PathValue("sessionID")
+	var payload struct {
+		UserID string `json:"user_id"`
+	}
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteJSON(w, 400, "Invalid Request")
+		return
+	}
+
+	session, err := h.svc.Confirm(r.Context(), sessionID, payload.UserID)
+	if err != nil {
+		utils.WriteJSON(w, 400, err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, 200, session)
 }
 
 func (h *Handler) ReleaseSession(w http.ResponseWriter, r *http.Request) {
-	utils.WriteJSON(w, 200, "Ok")
+	sessionID := r.PathValue("sessionID")
+	var payload struct {
+		UserID string `json:"user_id"`
+	}
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteJSON(w, 400, "Invalid Request")
+		return
+	}
+
+	if err := h.svc.Release(r.Context(), sessionID, payload.UserID); err != nil {
+		utils.WriteJSON(w, 400, err.Error())
+		return
+	}
+
+	utils.WriteJSON(w, 200, "Released")
 }
 
 type seatInfo struct {
@@ -83,4 +109,6 @@ type seatInfo struct {
 	UserId    string    `json:"user_id"`
 	Booked    bool      `json:"booked"`
 	ExpiresAt time.Time `json:"expires_at"`
+	SessionId string    `json:"session_id"`
+	Status    string    `json:"status"`
 }
