@@ -5,11 +5,12 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/blueberry-adii/CineMe/internal/redis"
 	"github.com/google/uuid"
 )
 
 func TestConcurrentBooking(t *testing.T) {
-	store := NewConcurrentStore()
+	store := NewRedisStore(redis.NewRedisClient("localhost:6379"))
 	svc := NewService(store)
 
 	const goroutines = 100_000

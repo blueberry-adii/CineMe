@@ -1,38 +1,67 @@
 package booking
 
-import goredis "github.com/redis/go-redis/v9"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+)
+
+const defaultHoldTTL = time.Second * 10
 
 type RedisStore struct {
-	rdb      *goredis.Client
-	bookings map[string]Booking
+	rdb *redis.Client
 }
 
-func NewRedisStore(rdb *goredis.Client) *RedisStore {
+func NewRedisStore(rdb *redis.Client) *RedisStore {
 	return &RedisStore{
 		rdb,
-		map[string]Booking{},
 	}
+}
+
+func sessionKey(id string) string {
+	return fmt.Sprintf("session:%s", id)
 }
 
 func (s *RedisStore) Book(b Booking) error {
-	if _, exists := s.bookings[b.SeatID]; exists {
-		return ErrSeatAlreadyBooked
+	b, err := s.hold(b)
+
+	if err != nil {
+		return err
 	}
 
-	s.bookings[b.SeatID] = b
+	log.Printf("Session booked %v", b)
+
 	return nil
 }
 
 func (s *RedisStore) ListBookings(movieID string) []Booking {
-	var result []Booking
+	return []Booking{}
+}
 
-	for _, b := range s.bookings {
-		if movieID == b.MovieID {
-			result = append(result, b)
-		}
+func (s *RedisStore) hold(b Booking) (Booking, error) {
+	b.ID = uuid.New().String()
+	b.ExpiresAt = time.Now().Add(defaultHoldTTL)
+	b.Status = "held"
+
+	ctx := context.Background()
+	key := fmt.Sprintf("seat:%s:%s", b.MovieID, b.SeatID)
+	val, _ := json.Marshal(b)
+
+	if res := s.rdb.SetArgs(ctx, key, val, redis.SetArgs{
+		Mode: string(redis.NX),
+		TTL:  defaultHoldTTL,
+	}); res.Val() != "OK" {
+		return Booking{}, ErrSeatAlreadyBooked
 	}
 
-	return result
+	s.rdb.Set(ctx, sessionKey(b.ID), key, defaultHoldTTL)
+
+	return b, nil
 }
 
 // func (s *RedisStore) Confirm(ctx context.Context, sessionID string, userID string) (Booking, error) {
