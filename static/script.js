@@ -20,21 +20,28 @@ let selectedMovieId = null;
 let currentSeatsData = [];
 const USER_ID = Math.random().toString(36).substring(2, 15);
 
-async function fetchSeats(movieId) {
+async function fetchBookings(movieId) {
     if (!movieId) return;
     try {
-        const res = await fetch(`/api/movies/${movieId}/seats`);
+        const res = await fetch(`/api/movies/${movieId}/bookings`);
         if (!res.ok) throw new Error();
-        const data = await res.json();
+        const bookings = await res.json();
         
-        if (Array.isArray(data)) {
-            currentSeatsData = data;
-            soldByOther = [];
-            reservedByOther = [];
+        soldByOther = [];
+        confirmedByYou = [];
+        
+        if (Array.isArray(bookings)) {
+            bookings.forEach(booking => {
+                if (booking.user_id === USER_ID) {
+                    confirmedByYou.push(booking.seat_id);
+                } else {
+                    soldByOther.push(booking.seat_id);
+                }
+            });
         }
     } catch (err) {
         soldByOther = [];
-        reservedByOther = [];
+        confirmedByYou = [];
     }
     renderSeats();
 }
@@ -76,6 +83,7 @@ async function renderMovies() {
             movieTag.classList.add("selected");
             
             selectedMovieId = movie.id;
+            currentSeatsData = movie.seats || [];
 
             movieHeader.innerText = movie.title;
             genreEl.innerText = movie.genre;
@@ -85,7 +93,7 @@ async function renderMovies() {
             `;
 
             selectedByYou = [];
-            await fetchSeats(selectedMovieId);
+            await fetchBookings(selectedMovieId);
             updateSummary();
             stopTimer();
         };

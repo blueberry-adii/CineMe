@@ -22,7 +22,7 @@ func main() {
 
 	mux.HandleFunc("GET /api/health", getHealth)
 
-	mux.HandleFunc("GET /api/movies/{movieId}/seats", handler.ListSeats)
+	mux.HandleFunc("GET /api/movies/{movieId}/bookings", handler.ListBookings)
 	mux.HandleFunc("POST /api/movies/{movieId}/seats/{seatId}/hold", handler.HoldSeat)
 
 	mux.HandleFunc("PUT /sessions/{sessionID}/confirm", handler.ConfirmSession)

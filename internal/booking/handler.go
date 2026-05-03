@@ -14,13 +14,21 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc}
 }
 
-func (h *Handler) ListSeats(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListBookings(w http.ResponseWriter, r *http.Request) {
 	movieId := r.PathValue("movieId")
-	if Seats[movieId] == nil {
-		utils.WriteJSON(w, 404, "Movie Not Listed")
-		return
+	bookings := h.svc.ListBookings(movieId)
+	seats := make([]seatInfo, 0, len(bookings))
+
+	for _, b := range bookings {
+		if b.MovieID == movieId {
+			seats = append(seats, seatInfo{
+				SeatId: b.SeatID,
+				UserId: b.UserID,
+				Booked: true,
+			})
+		}
 	}
-	utils.WriteJSON(w, 200, Seats[movieId])
+	utils.WriteJSON(w, 200, seats)
 }
 
 func (h *Handler) HoldSeat(w http.ResponseWriter, r *http.Request) {
@@ -52,4 +60,10 @@ func (h *Handler) ConfirmSession(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ReleaseSession(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, 200, "Ok")
+}
+
+type seatInfo struct {
+	SeatId string `json:"seat_id"`
+	UserId string `json:"user_id"`
+	Booked bool   `json:"booked"`
 }
