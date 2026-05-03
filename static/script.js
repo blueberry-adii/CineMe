@@ -3,8 +3,8 @@ const HOLD_TIME = 30;
 
 let selectedByYou = [];
 let confirmedByYou = [];
-let soldByOther = ["F2", "D2"];
-let reservedByOther = ["C2"];
+let soldByOther = [];
+let reservedByOther = [];
 
 let timerInterval = null;
 let timeLeft = HOLD_TIME;
@@ -16,25 +16,95 @@ const timerContainer = document.getElementById("timer-container");
 const timerEl = document.getElementById("timer");
 const bookBtn = document.getElementById("book-btn");
 
-const seatsData = [
-    ["A1", "A2", "A3", "A4", "A5", "A6"],
-    ["B1", "B2", "B3", "B4", "B5", "B6"],
-    ["C1", "C2", "C3", "C4", "C5", "C6"],
-    ["spacer"],
-    ["D1", "D2", "D3", "D4", "D5", "D6"],
-    ["E1", "E2", "E3", "E4", "E5", "E6", "E7"],
-    ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"],
-];
+let selectedMovieId = null;
+let currentSeatsData = [];
 
-function init() {
+async function fetchSeats(movieId) {
+    if (!movieId) return;
+    try {
+        const res = await fetch(`/api/movies/${movieId}/seats`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        if (Array.isArray(data)) {
+            currentSeatsData = data;
+            soldByOther = [];
+            reservedByOther = [];
+        }
+    } catch (err) {
+        soldByOther = [];
+        reservedByOther = [];
+    }
     renderSeats();
+}
+
+async function init() {
+    await renderMovies();
     updateSummary();
-    startSimulation();
+}
+
+async function renderMovies() {
+    const cont = document.querySelector(".movie-options");
+    const movieHeader = document.querySelector(".movie-info h1");
+    const genreEl = document.querySelector(".genre");
+    const metaEl = document.querySelector(".meta");
+    
+    let movies = [];
+    
+    try {
+        const res = await fetch("/api/movies");
+        if (!res.ok) throw new Error();
+        movies = await res.json();
+    } catch (err) {
+        return;
+    }
+
+    cont.innerHTML = "";
+
+    let firstSelection = null;
+
+    for (let i = 0; i < movies.length; i++) {
+        const movie = movies[i];
+        const movieTag = document.createElement("div");
+        movieTag.className = "movie-container";
+        movieTag.style.animation = `fadeIn 0.5s ease-out ${i * 0.1}s backwards`;
+        movieTag.innerText = movie.title;
+
+        const selectMovie = async () => {
+            document.querySelectorAll(".movie-container").forEach(el => el.classList.remove("selected"));
+            movieTag.classList.add("selected");
+            
+            selectedMovieId = movie.id;
+
+            movieHeader.innerText = movie.title;
+            genreEl.innerText = movie.genre;
+            metaEl.innerHTML = `
+                <span>${movie.duration}</span>
+                <span>IMDb ${movie.rating}</span>
+            `;
+
+            selectedByYou = [];
+            await fetchSeats(selectedMovieId);
+            updateSummary();
+            stopTimer();
+        };
+
+        movieTag.addEventListener("click", selectMovie);
+        cont.appendChild(movieTag);
+
+        if (i === 0 || movieHeader.innerText === movie.title) {
+            firstSelection = selectMovie;
+        }
+    }
+
+    if (firstSelection) await firstSelection();
 }
 
 function renderSeats() {
     seatGrid.innerHTML = "";
-    seatsData.forEach(rowData => {
+    if (!currentSeatsData || currentSeatsData.length === 0) return;
+
+    currentSeatsData.forEach(rowData => {
         if (rowData[0] === "spacer") {
             const spacer = document.createElement("div");
             spacer.style.height = "20px";
@@ -71,12 +141,21 @@ function renderSeats() {
     });
 }
 
-function toggleSeat(seatNum) {
+async function toggleSeat(seatNum) {
     if (selectedByYou.includes(seatNum)) {
         selectedByYou = selectedByYou.filter(s => s !== seatNum);
     } else {
-        // Can't select if someone else is holding or it's sold
         if (reservedByOther.includes(seatNum) || soldByOther.includes(seatNum) || confirmedByYou.includes(seatNum)) return;
+        
+        if (selectedMovieId) {
+            try {
+                const res = await fetch(`/api/movies/${selectedMovieId}/seats/${seatNum}/hold`);
+                if (!res.ok) return;
+            } catch (err) {
+                return;
+            }
+        }
+        
         selectedByYou.push(seatNum);
     }
 
@@ -148,31 +227,6 @@ function expireSelection() {
     renderSeats();
     updateSummary();
     showModal("Session Expired", "Your seat hold has expired. Please select seats again.");
-}
-
-// Simulation Logic
-function startSimulation() {
-    setInterval(() => {
-        const allSeats = seatsData.flat().filter(s => s !== "spacer");
-        const availableForOther = allSeats.filter(s => 
-            !soldByOther.includes(s) && 
-            !confirmedByYou.includes(s) && 
-            !selectedByYou.includes(s) && 
-            !reservedByOther.includes(s)
-        );
-
-        if (Math.random() > 0.7 && availableForOther.length > 0) {
-            const randomSeat = availableForOther[Math.floor(Math.random() * availableForOther.length)];
-            reservedByOther.push(randomSeat);
-            renderSeats();
-            
-            setTimeout(() => {
-                reservedByOther = reservedByOther.filter(s => s !== randomSeat);
-                if (Math.random() > 0.8) soldByOther.push(randomSeat);
-                renderSeats();
-            }, 1000 + Math.random() * 1000);
-        }
-    }, 1000);
 }
 
 bookBtn.addEventListener("click", () => {

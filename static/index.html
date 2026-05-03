@@ -3,55 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineMe</title>
+    <title>CineMe | Premium Cinema Booking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <meta name="description" content="Experience premium cinema booking with CineMe. Select your favorite movies and reserve seats with a stunning interactive interface.">
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
 <body> 
-    <div class="container">
-        <header class="movie-header">
-            <div class="movie-info">
-                <h1>Interstellar</h1>
-                <p class="genre">Sci-Fi • Adventure • Drama</p>
-                <div class="meta">
-                    <span>169 min</span>
-                    <span>IMDb 8.7</span>
+    <div class="app">
+        <div class="movie-options">
+            <div class="movie-container">Interstellar</div>
+            <div class="movie-container">Inception</div>
+        </div>
+        <div class="container">
+            <header class="movie-header">
+                <div class="movie-info">
+                    <h1>Interstellar</h1>
+                    <p class="genre">Sci-Fi • Adventure • Drama</p>
+                    <div class="meta">
+                        <span>169 min</span>
+                        <span>IMDb 8.7</span>
+                    </div>
                 </div>
-            </div>
-            <div class="timer-container" id="timer-container" style="display: none;">
-                <span class="timer-label">Seats held for:</span>
-                <span id="timer">05:00</span>
-            </div>
-        </header>
-
-        <main class="booking-area">
-            <div class="screen-container">
-                <div class="screen"></div>
-                <p class="screen-label">SCREEN</p>
-            </div>
-
-            <div class="seating-chart">
-                <div class="columns" id="seat-grid">
-                    <!-- Seats will be generated here -->
+                <div class="timer-container" id="timer-container" style="display: none;">
+                    <span class="timer-label">Seats held for:</span>
+                    <span id="timer">05:00</span>
                 </div>
-            </div>
-
-            <div class="legend">
-                <div class="item"><div class="seat-sample normal"></div> <span>Available</span></div>
-                <div class="item"><div class="seat-sample selected"></div> <span>Selected</span></div>
-                <div class="item"><div class="seat-sample reserved"></div> <span>Reserved</span></div>
-                <div class="item"><div class="seat-sample confirmed"></div> <span>Confirmed</span></div>
-                <div class="item"><div class="seat-sample sold"></div> <span>Sold</span></div>
-            </div>
-        </main>
-
-        <footer class="booking-summary" id="booking-summary">
-            <div class="summary-details">
-                <p><span id="count">0</span> Seats selected</p>
-                <p class="total">Total: <span id="total">$0</span></p>
-            </div>
-            <button class="book-btn" id="book-btn" disabled>Book Now</button>
-        </footer>
+            </header>
+        
+            <main class="booking-area">
+                <div class="screen-container">
+                    <div class="screen"></div>
+                    <p class="screen-label">SCREEN</p>
+                </div>
+        
+                <div class="seating-chart">
+                    <div class="columns" id="seat-grid">
+                        <!-- Seats will be generated here -->
+                    </div>
+                </div>
+        
+                <div class="legend">
+                    <div class="item">
+                        <div class="seat-sample normal"></div> <span>Available</span>
+                    </div>
+                    <div class="item">
+                        <div class="seat-sample selected"></div> <span>Selected</span>
+                    </div>
+                    <div class="item">
+                        <div class="seat-sample reserved"></div> <span>Reserved</span>
+                    </div>
+                    <div class="item">
+                        <div class="seat-sample confirmed"></div> <span>Confirmed</span>
+                    </div>
+                    <div class="item">
+                        <div class="seat-sample sold"></div> <span>Sold</span>
+                    </div>
+                </div>
+            </main>
+        
+            <footer class="booking-summary" id="booking-summary">
+                <div class="summary-details">
+                    <p><span id="count">0</span> Seats selected</p>
+                    <p class="total">Total: <span id="total">$0</span></p>
+                </div>
+                <button class="book-btn" id="book-btn" disabled>Book Now</button>
+            </footer>
+        </div>
     </div>
 
     <div id="modal-overlay" class="modal-overlay">

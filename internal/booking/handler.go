@@ -15,7 +15,12 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) ListSeats(w http.ResponseWriter, r *http.Request) {
-	utils.WriteJSON(w, 200, "Ok")
+	movieId := r.PathValue("movieId")
+	if Seats[movieId] == nil {
+		utils.WriteJSON(w, 404, "Movie Not Listed")
+		return
+	}
+	utils.WriteJSON(w, 200, Seats[movieId])
 }
 
 func (h *Handler) HoldSeat(w http.ResponseWriter, r *http.Request) {
