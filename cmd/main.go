@@ -25,8 +25,8 @@ func main() {
 	mux.HandleFunc("GET /api/movies/{movieId}/bookings", handler.ListBookings)
 	mux.HandleFunc("POST /api/movies/{movieId}/seats/{seatId}/hold", handler.HoldSeat)
 
-	mux.HandleFunc("PUT /sessions/{sessionID}/confirm", handler.ConfirmSession)
-	mux.HandleFunc("DELETE /sessions/{sessionID}", handler.ReleaseSession)
+	mux.HandleFunc("PUT /api/sessions/{sessionID}/confirm", handler.ConfirmSession)
+	mux.HandleFunc("DELETE /api/sessions/{sessionID}", handler.ReleaseSession)
 
 	log.Println("Server listening on localhost")
 	if err := http.ListenAndServe(":80", mux); err != nil {

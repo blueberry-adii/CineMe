@@ -1,5 +1,4 @@
 const SEAT_PRICE = 12;
-const HOLD_TIME = 30;
 
 let selectedByYou = [];
 let confirmedByYou = [];
@@ -7,7 +6,10 @@ let soldByOther = [];
 let reservedByOther = [];
 
 let timerInterval = null;
-let timeLeft = HOLD_TIME;
+let pollingInterval = null;
+let sessionExpiries = {}; 
+let lastActionTime = 0;
+let pendingSeats = new Set(); // Seats currently being held via API
 
 const seatGrid = document.getElementById("seat-grid");
 const countEl = document.getElementById("count");
@@ -20,35 +22,64 @@ let selectedMovieId = null;
 let currentSeatsData = [];
 const USER_ID = Math.random().toString(36).substring(2, 15);
 
-async function fetchBookings(movieId) {
+async function fetchBookings(movieId, isInitial = false) {
     if (!movieId) return;
     try {
         const res = await fetch(`/api/movies/${movieId}/bookings`);
         if (!res.ok) throw new Error();
         const bookings = await res.json();
         
-        soldByOther = [];
-        confirmedByYou = [];
+        const newReserved = [];
+        const newSelected = [];
+        const newExpiries = { ...sessionExpiries };
         
         if (Array.isArray(bookings)) {
             bookings.forEach(booking => {
                 if (booking.user_id === USER_ID) {
-                    confirmedByYou.push(booking.seat_id);
+                    newSelected.push(booking.seat_id);
+                    if (booking.expires_at) {
+                        newExpiries[booking.seat_id] = new Date(booking.expires_at).getTime();
+                    }
                 } else {
-                    soldByOther.push(booking.seat_id);
+                    newReserved.push(booking.seat_id);
                 }
             });
         }
+
+        reservedByOther = newReserved;
+        
+        // Only sync selected seats if it's the first load OR if the user hasn't interacted recently
+        const timeSinceAction = Date.now() - lastActionTime;
+        if (isInitial || timeSinceAction > 5000) {
+            // Keep seats that are "pending" or recently clicked
+            const mergedSelected = [...new Set([...newSelected, ...Array.from(pendingSeats)])];
+            selectedByYou = mergedSelected;
+            sessionExpiries = { ...newExpiries };
+        }
+
+        renderSeats();
+        updateSummary();
+        
+        if (selectedByYou.length > 0) {
+            startTimer();
+        } else {
+            stopTimer();
+        }
     } catch (err) {
-        soldByOther = [];
-        confirmedByYou = [];
+        // Silently fail during polling
     }
-    renderSeats();
+}
+
+function startPolling() {
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(() => {
+        if (selectedMovieId) fetchBookings(selectedMovieId);
+    }, 1000);
 }
 
 async function init() {
     await renderMovies();
-    updateSummary();
+    startPolling();
 }
 
 async function renderMovies() {
@@ -93,9 +124,11 @@ async function renderMovies() {
             `;
 
             selectedByYou = [];
-            await fetchBookings(selectedMovieId);
+            reservedByOther = [];
+            sessionExpiries = {};
+            lastActionTime = 0; // Reset for new movie
+            await fetchBookings(selectedMovieId, true);
             updateSummary();
-            stopTimer();
         };
 
         movieTag.addEventListener("click", selectMovie);
@@ -136,12 +169,25 @@ function renderSeats() {
                 seat.classList.add("sold");
             } else if (selectedByYou.includes(seatNum)) {
                 seat.classList.add("selected");
-                seat.addEventListener("click", () => toggleSeat(seatNum));
+                
+                const timerSpan = document.createElement("span");
+                timerSpan.className = "seat-timer";
+                timerSpan.id = `timer-${seatNum}`;
+                
+                const expiry = sessionExpiries[seatNum];
+                if (expiry) {
+                    const distance = expiry - Date.now();
+                    if (distance > 0) {
+                        timerSpan.textContent = `${Math.ceil(distance / 1000)}s`;
+                    }
+                } else {
+                    timerSpan.textContent = "10s";
+                }
+                seat.appendChild(timerSpan);
             } else if (reservedByOther.includes(seatNum)) {
                 seat.classList.add("reserved");
             } else {
                 seat.classList.add("normal");
-                seat.addEventListener("click", () => toggleSeat(seatNum));
             }
 
             row.appendChild(seat);
@@ -150,38 +196,65 @@ function renderSeats() {
     });
 }
 
+// Event Delegation
+seatGrid.addEventListener("click", (e) => {
+    const seat = e.target.closest(".seat");
+    if (!seat || !seat.dataset.num) return;
+    toggleSeat(seat.dataset.num);
+});
+
 async function toggleSeat(seatNum) {
+    if (reservedByOther.includes(seatNum) || soldByOther.includes(seatNum) || confirmedByYou.includes(seatNum)) return;
+
+    lastActionTime = Date.now(); 
+
     if (selectedByYou.includes(seatNum)) {
         selectedByYou = selectedByYou.filter(s => s !== seatNum);
+        delete sessionExpiries[seatNum];
+        pendingSeats.delete(seatNum);
     } else {
-        if (reservedByOther.includes(seatNum) || soldByOther.includes(seatNum) || confirmedByYou.includes(seatNum)) return;
+        // Prevent double-adding if clicked rapidly
+        if (selectedByYou.includes(seatNum)) return;
         
+        selectedByYou.push(seatNum);
+        pendingSeats.add(seatNum);
+        sessionExpiries[seatNum] = Date.now() + 10000;
+        
+        // Immediate synchronous update
+        renderSeats();
+        updateSummary();
+        startTimer();
+
         if (selectedMovieId) {
             try {
                 const res = await fetch(`/api/movies/${selectedMovieId}/seats/${seatNum}/hold`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ user_id: USER_ID })
                 });
-                if (!res.ok) return;
+                
+                if (!res.ok) {
+                    selectedByYou = selectedByYou.filter(s => s !== seatNum);
+                    pendingSeats.delete(seatNum);
+                    delete sessionExpiries[seatNum];
+                } else {
+                    const booking = await res.json();
+                    if (booking && booking.expires_at) {
+                        sessionExpiries[seatNum] = new Date(booking.expires_at).getTime();
+                    }
+                    pendingSeats.delete(seatNum);
+                }
             } catch (err) {
-                return;
+                selectedByYou = selectedByYou.filter(s => s !== seatNum);
+                pendingSeats.delete(seatNum);
+                delete sessionExpiries[seatNum];
             }
         }
-        
-        selectedByYou.push(seatNum);
-    }
-
-    if (selectedByYou.length > 0) {
-        startTimer();
-    } else {
-        stopTimer();
     }
 
     renderSeats();
     updateSummary();
+    if (selectedByYou.length > 0) startTimer(); else stopTimer();
 }
 
 function updateSummary() {
@@ -191,32 +264,50 @@ function updateSummary() {
 }
 
 function startTimer() {
-    if (timerInterval) return;
+    if (timerInterval) clearInterval(timerInterval);
     
-    timeLeft = HOLD_TIME;
-    timerContainer.style.display = "block";
-    updateTimerDisplay();
+    const update = () => {
+        const now = Date.now();
+        let anyExpired = false;
 
-    timerInterval = setInterval(() => {
-        timeLeft--;
-        updateTimerDisplay();
+        selectedByYou.forEach(seatId => {
+            const expiry = sessionExpiries[seatId];
+            const el = document.getElementById(`timer-${seatId}`);
+            
+            if (expiry) {
+                const distance = expiry - now;
+                if (distance <= 0) {
+                    expireSeat(seatId);
+                    anyExpired = true;
+                } else {
+                    if (el) {
+                        const s = Math.ceil(distance / 1000);
+                        el.textContent = `${s}s`;
+                    }
+                }
+            }
+        });
 
-        if (timeLeft <= 0) {
-            expireSelection();
+        if (anyExpired) {
+            renderSeats();
+            updateSummary();
         }
-    }, 1000);
+        
+        if (selectedByYou.length === 0) stopTimer();
+    };
+
+    update();
+    timerInterval = setInterval(update, 500);
+}
+
+function expireSeat(seatId) {
+    selectedByYou = selectedByYou.filter(s => s !== seatId);
+    delete sessionExpiries[seatId];
 }
 
 function stopTimer() {
-    clearInterval(timerInterval);
+    if (timerInterval) clearInterval(timerInterval);
     timerInterval = null;
-    timerContainer.style.display = "none";
-}
-
-function updateTimerDisplay() {
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 const modalOverlay = document.getElementById("modal-overlay");
@@ -239,6 +330,7 @@ modalClose.addEventListener("click", hideModal);
 function expireSelection() {
     stopTimer();
     selectedByYou = [];
+    sessionExpiries = {};
     renderSeats();
     updateSummary();
     showModal("Session Expired", "Your seat hold has expired. Please select seats again.");
@@ -248,6 +340,7 @@ bookBtn.addEventListener("click", () => {
     showModal("Booking Confirmed!", `Successfully booked: ${selectedByYou.join(", ")}. Enjoy your movie!`);
     selectedByYou.forEach(s => confirmedByYou.push(s));
     selectedByYou = [];
+    sessionExpiries = {};
     stopTimer();
     renderSeats();
     updateSummary();

@@ -23,9 +23,10 @@ func (h *Handler) ListBookings(w http.ResponseWriter, r *http.Request) {
 	for _, b := range bookings {
 		if b.MovieID == movieId {
 			seats = append(seats, seatInfo{
-				SeatId: b.SeatID,
-				UserId: b.UserID,
-				Booked: true,
+				SeatId:    b.SeatID,
+				UserId:    b.UserID,
+				Booked:    true,
+				ExpiresAt: b.ExpiresAt,
 			})
 		}
 	}
@@ -78,7 +79,8 @@ func (h *Handler) ReleaseSession(w http.ResponseWriter, r *http.Request) {
 }
 
 type seatInfo struct {
-	SeatId string `json:"seat_id"`
-	UserId string `json:"user_id"`
-	Booked bool   `json:"booked"`
+	SeatId    string    `json:"seat_id"`
+	UserId    string    `json:"user_id"`
+	Booked    bool      `json:"booked"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
